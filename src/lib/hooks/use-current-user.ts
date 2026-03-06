@@ -1,0 +1,61 @@
+'use client';
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useUser, useAuth } from '@clerk/nextjs';
+import type { User, HandymanProfile } from '@prisma/client';
+
+export type CurrentUser = User & { handymanProfile: HandymanProfile | null };
+
+async function fetchMe(): Promise<CurrentUser | null> {
+  const res = await fetch('/api/users/me');
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error('Failed to fetch user');
+  return res.json();
+}
+
+export function useCurrentUser() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user: clerkUser } = useUser();
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['current-user'],
+    queryFn: fetchMe,
+    enabled: isLoaded && isSignedIn === true,
+    staleTime: 60 * 1000,
+  });
+
+  const updateProfile = async (data: Partial<{
+    name: string;
+    location: string | null;
+    phone: string | null;
+    photoUrl: string | null;
+    isAvailable: boolean;
+    handymanProfile: Partial<{
+      businessName: string | null;
+      bio: string | null;
+      skills: string[];
+      serviceRadius: number;
+      hourlyRate: number | null;
+    }>;
+  }>) => {
+    const res = await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update profile');
+    const updated = await res.json();
+    queryClient.setQueryData(['current-user'], updated);
+    return updated as CurrentUser;
+  };
+
+  return {
+    user: query.data ?? null,
+    isLoaded: isLoaded && (!isSignedIn || !query.isPending),
+    isSignedIn: isSignedIn ?? false,
+    clerkUser,
+    updateProfile,
+    refetch: query.refetch,
+  };
+}

@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String            @id @default(cuid())
+  clerkId         String            @unique
+  email           String            @unique
+  name            String
+  role            Role              @default(HOMEOWNER)
+  location        String?
+  phone           String?
+  photoUrl        String?
+  isAvailable     Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  handymanProfile HandymanProfile?
+  jobsPosted      Job[]             @relation("JobsPosted")
+  bidsSubmitted   Bid[]
+  messagesSent    Message[]
+  reviewsGiven    Review[]          @relation("ReviewsGiven")
+  reviewsReceived Review[]          @relation("ReviewsReceived")
+  notifications   Notification[]
+}
+
+enum Role {
+  HOMEOWNER
+  HANDYMAN
+}
+
+model HandymanProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName  String?
+  skills        String[]
+  bio           String?
+  serviceRadius Int      // miles
+  hourlyRate    Decimal?
+  ratingAvg     Decimal  @default(0)
+  ratingCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Job {
+  id            String     @id @default(cuid())
+  homeownerId   String
+  homeowner     User       @relation("JobsPosted", fields: [homeownerId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  category      String
+  location      String
+  budget        Decimal
+  preferredDate DateTime?
+  status        JobStatus  @default(OPEN)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  awardedAt     DateTime?
+  completedAt   DateTime?
+
+  photos        JobPhoto[]
+  bids          Bid[]
+  messages      Message[]
+  reviews       Review[]
+
+  @@index([homeownerId])
+  @@index([status])
+  @@index([category])
+  @@index([location])
+  @@index([status, createdAt])
+}
+
+enum JobStatus {
+  OPEN
+  IN_REVIEW
+  AWARDED
+  COMPLETED
+  CANCELLED
+}
+
+model JobPhoto {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Bid {
+  id         String    @id @default(cuid())
+  jobId      String
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  handymanId String
+  handyman   User      @relation(fields: [handymanId], references: [id], onDelete: Cascade)
+  amount     Decimal
+  message    String
+  etaDays    Int
+  status     BidStatus @default(PENDING)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  messages      Message[]
+  isRecommended Boolean   @default(false)
+
+  @@unique([jobId, handymanId])
+  @@index([jobId])
+  @@index([handymanId])
+  @@index([status])
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  bidId     String?
+  bid       Bid?     @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+  @@index([bidId])
+  @@index([bidId, createdAt])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  jobId      String   @unique
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  handymanId String
+  handyman   User     @relation("ReviewsReceived", fields: [handymanId], references: [id], onDelete: Cascade)
+  stars      Int      // 1-5
+  text       String?
+  createdAt  DateTime @default(now())
+
+  @@index([handymanId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  linkPath  String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
+}
+
+enum NotificationType {
+  NEW_BID
+  BID_ACCEPTED
+  BID_DECLINED
+  JOB_COMPLETED
+  NEW_MESSAGE
+  JOB_STATUS
+}
