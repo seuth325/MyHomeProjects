@@ -37,7 +37,7 @@ type Message = {
 
 export default function MessageThreadPage({ params }: { params: Promise<{ bidId: string }> }) {
   const { bidId } = use(params);
-  const { data: currentUser } = useCurrentUser();
+  const { user: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
 

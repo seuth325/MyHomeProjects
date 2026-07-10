@@ -14,12 +14,12 @@ export async function GET(_request: Request, { params }: Params) {
       where: { id: userId },
       include: {
         handymanProfile: true,
-        reviews: {
+        reviewsReceived: {
           orderBy: { createdAt: 'desc' },
           take: 20,
           include: { reviewer: { select: { name: true } } },
         },
-        _count: { select: { bids: true } },
+        _count: { select: { bidsSubmitted: true } },
       },
     });
 
@@ -41,7 +41,7 @@ export async function GET(_request: Request, { params }: Params) {
             ratingAvg: Number(user.handymanProfile.ratingAvg),
           }
         : null,
-      reviews: user.reviews.map(r => ({ ...r, reviewer: r.reviewer })),
+      reviews: user.reviewsReceived.map(r => ({ ...r, reviewer: r.reviewer })),
       completedJobs,
     });
   } catch {

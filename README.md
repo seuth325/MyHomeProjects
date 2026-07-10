@@ -13,12 +13,12 @@ FixMyHome allows:
 
 - **Framework:** Next.js 14+ (App Router, React Server Components)
 - **Language:** TypeScript
-- **Database:** PostgreSQL with Prisma ORM
+- **Database:** Self-hosted PostgreSQL with Prisma ORM (`@prisma/adapter-pg`)
 - **Authentication:** Clerk
 - **File Storage:** Uploadthing
 - **Styling:** Tailwind CSS + shadcn/ui
 - **State Management:** TanStack Query + Zustand
-- **Deployment:** Vercel
+- **Deployment:** Docker on a self-managed VPS (Hostinger)
 
 ## Project Status
 
@@ -41,23 +41,18 @@ FixMyHome allows:
 
 ## Setup Instructions
 
-### 1. Set Up Database (Neon PostgreSQL)
+### 1. Set Up Database (self-hosted PostgreSQL)
 
-1. Create a free account at [Neon](https://neon.tech)
-2. Create a new project called "fixmyhome"
-3. Copy the connection string (starts with `postgresql://`)
-4. Create `.env` file in the project root:
+The app runs against a standard self-hosted PostgreSQL instance via `@prisma/adapter-pg` — no cloud-specific driver required. On a VPS this is the `db` service in `docker-compose.yml`.
+
+1. Create `.env` file in the project root:
 
 ```bash
 # Copy .env.example to .env
 cp .env.example .env
 ```
 
-5. Add your database URL to `.env`:
-
-```
-DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
-```
+2. Set `POSTGRES_PASSWORD` and `DATABASE_URL` in `.env` (see comments in `.env.example` for the Docker vs. bare-metal host difference).
 
 ### 2. Run Database Migrations
 
@@ -302,18 +297,26 @@ npm run format       # Format with Prettier (if configured)
 
 ## Deployment
 
-### Deploy to Vercel
+### Deploy to a VPS (Docker)
 
-1. Push code to GitHub
-2. Import repository on Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+The app ships with a multi-stage `Dockerfile` (Next.js `output: "standalone"`) and a `docker-compose.yml` that runs the app alongside a self-hosted PostgreSQL container.
 
-Vercel automatically:
-- Builds your Next.js app
-- Provisions serverless functions
-- Configures CDN
-- Generates preview URLs for PRs
+1. On the VPS, clone the repo and create `.env` from `.env.example` (set `POSTGRES_PASSWORD` and all other secrets — Clerk, Uploadthing, etc.)
+2. Start Postgres and the app:
+
+```bash
+docker compose up -d --build
+```
+
+3. Run migrations against the running database (one-off container using the `builder` stage, which has the Prisma CLI):
+
+```bash
+docker compose run --rm migrate
+```
+
+4. Put a reverse proxy (Nginx, Caddy) in front of port 3000 for TLS termination and your domain.
+
+Re-deploy after pulling new code with `docker compose up -d --build`, then re-run the `migrate` step if the schema changed.
 
 ### Database Migrations
 
@@ -323,7 +326,7 @@ For production database:
 npx prisma migrate deploy
 ```
 
-This runs all pending migrations without prompting.
+This runs all pending migrations without prompting. Inside Docker, use `docker compose run --rm migrate` instead (see above).
 
 ## Support & Resources
 

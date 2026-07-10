@@ -56,7 +56,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const message = await db.message.create({
-      data: { bidId, senderId: user.id, body: parsed.data.body },
+      data: { jobId: bid.jobId, bidId, senderId: user.id, body: parsed.data.body },
       include: { sender: { select: { id: true, name: true } } },
     });
 

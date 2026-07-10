@@ -14,7 +14,7 @@ export const createJobSchema = z.object({
     .max(2000, 'Description must be less than 2000 characters'),
 
   category: z.enum(JOB_CATEGORIES as readonly [string, ...string[]], {
-    required_error: 'Please select a category',
+    error: 'Please select a category',
   }),
 
   location: z

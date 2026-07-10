@@ -1,5 +1,5 @@
 import type { Bid, HandymanProfile, Job } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Decimal } from '@prisma/client-runtime-utils';
 
 type BidWithHandyman = Bid & {
   handyman: {

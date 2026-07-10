@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMyJobs } from '@/lib/hooks/use-jobs';
@@ -15,6 +15,14 @@ import { formatCurrency, formatRelativeTime } from '@/lib/utils';
 import { JOB_CATEGORIES } from '@/lib/constants';
 
 export default function JobsPage() {
+  return (
+    <Suspense fallback={null}>
+      <JobsPageContent />
+    </Suspense>
+  );
+}
+
+function JobsPageContent() {
   const searchParams = useSearchParams();
   const { data: allJobs = [], isPending } = useMyJobs();
   const [searchQuery, setSearchQuery] = useState('');

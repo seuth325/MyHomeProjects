@@ -70,7 +70,7 @@ async function fetchJob(id: string): Promise<JobDetail> {
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: currentUser, isPending: userPending } = useCurrentUser();
+  const { user: currentUser, isLoaded: userLoaded } = useCurrentUser();
   const { data: job, isPending: jobPending, error } = useQuery({
     queryKey: ['job', id],
     queryFn: () => fetchJob(id),
@@ -82,7 +82,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const updateStatus = useUpdateJobStatus();
 
   const isHandyman = currentUser?.role === 'HANDYMAN';
-  const isLoading = userPending || jobPending;
+  const isLoading = !userLoaded || jobPending;
 
   const handleAcceptBid = async (bidId: string, handymanName: string) => {
     try {
