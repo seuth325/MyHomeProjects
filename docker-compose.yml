@@ -27,7 +27,7 @@ services:
     env_file:
       - .env
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   # One-off migration runner: docker compose run --rm migrate
   migrate:

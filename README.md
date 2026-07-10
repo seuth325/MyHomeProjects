@@ -299,24 +299,58 @@ npm run format       # Format with Prettier (if configured)
 
 ### Deploy to a VPS (Docker)
 
-The app ships with a multi-stage `Dockerfile` (Next.js `output: "standalone"`) and a `docker-compose.yml` that runs the app alongside a self-hosted PostgreSQL container.
+The app ships with a multi-stage `Dockerfile` (Next.js `output: "standalone"`) and a `docker-compose.yml` that runs the app alongside a self-hosted PostgreSQL container. The app container only binds to `127.0.0.1:3000` — Nginx on the host handles the public-facing domain and TLS.
 
-1. On the VPS, clone the repo and create `.env` from `.env.example` (set `POSTGRES_PASSWORD` and all other secrets — Clerk, Uploadthing, etc.)
-2. Start Postgres and the app:
+Domain: **fixmyhome.pro** (must already have an A record pointing at the VPS's IP).
+
+1. Install Docker + the Compose plugin, and Nginx + certbot:
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+2. Clone the repo and create `.env` from `.env.example` (set `POSTGRES_PASSWORD` and all other secrets — Clerk, Uploadthing, etc.):
+
+```bash
+git clone https://github.com/seuth325/MyHomeProjects.git fixmyhome
+cd fixmyhome
+cp .env.example .env
+nano .env   # fill in real secrets
+```
+
+3. Start Postgres and the app:
 
 ```bash
 docker compose up -d --build
 ```
 
-3. Run migrations against the running database (one-off container using the `builder` stage, which has the Prisma CLI):
+4. Run migrations against the running database (one-off container using the `builder` stage, which has the Prisma CLI):
 
 ```bash
 docker compose run --rm migrate
 ```
 
-4. Put a reverse proxy (Nginx, Caddy) in front of port 3000 for TLS termination and your domain.
+5. Wire up Nginx and get a TLS cert:
 
-Re-deploy after pulling new code with `docker compose up -d --build`, then re-run the `migrate` step if the schema changed.
+```bash
+sudo cp deploy/nginx/fixmyhome.conf /etc/nginx/sites-available/fixmyhome
+sudo ln -s /etc/nginx/sites-available/fixmyhome /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d fixmyhome.pro -d www.fixmyhome.pro
+```
+
+certbot rewrites the Nginx config in place to add the HTTPS server block and sets up auto-renewal.
+
+6. Point the Clerk webhook (Clerk Dashboard → Webhooks) at `https://fixmyhome.pro/api/webhooks/clerk`.
+
+Re-deploy after pulling new code:
+
+```bash
+git pull
+docker compose up -d --build
+docker compose run --rm migrate   # only if the schema changed
+```
 
 ### Database Migrations
 
