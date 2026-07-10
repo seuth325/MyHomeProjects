@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 model User {
@@ -41,8 +41,8 @@ model HandymanProfile {
   userId        String   @unique
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   businessName  String?
-  skills        String[]
-  bio           String?
+  skills        Json     @default("[]")
+  bio           String?  @db.Text
   serviceRadius Int      // miles
   hourlyRate    Decimal?
   ratingAvg     Decimal  @default(0)
@@ -56,7 +56,7 @@ model Job {
   homeownerId   String
   homeowner     User       @relation("JobsPosted", fields: [homeownerId], references: [id], onDelete: Cascade)
   title         String
-  description   String
+  description   String     @db.Text
   category      String
   location      String
   budget        Decimal
@@ -102,7 +102,7 @@ model Bid {
   handymanId String
   handyman   User      @relation(fields: [handymanId], references: [id], onDelete: Cascade)
   amount     Decimal
-  message    String
+  message    String    @db.Text
   etaDays    Int
   status     BidStatus @default(PENDING)
   createdAt  DateTime  @default(now())
@@ -132,7 +132,7 @@ model Message {
   bid       Bid?     @relation(fields: [bidId], references: [id], onDelete: Cascade)
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  body      String
+  body      String   @db.Text
   createdAt DateTime @default(now())
 
   @@index([jobId])
@@ -149,7 +149,7 @@ model Review {
   handymanId String
   handyman   User     @relation("ReviewsReceived", fields: [handymanId], references: [id], onDelete: Cascade)
   stars      Int      // 1-5
-  text       String?
+  text       String?  @db.Text
   createdAt  DateTime @default(now())
 
   @@index([handymanId])
@@ -161,7 +161,7 @@ model Notification {
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
-  body      String
+  body      String   @db.Text
   linkPath  String
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())

@@ -5,7 +5,7 @@ type BidWithHandyman = Bid & {
   handyman: {
     id: string;
     name: string;
-    handymanProfile: Pick<HandymanProfile, 'businessName' | 'ratingAvg' | 'ratingCount' | 'skills'> | null;
+    handymanProfile: Pick<HandymanProfile, 'businessName' | 'ratingAvg' | 'ratingCount'> | null;
   };
 };
 

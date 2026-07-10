@@ -4,7 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser, useAuth } from '@clerk/nextjs';
 import type { User, HandymanProfile } from '@prisma/client';
 
-export type CurrentUser = User & { handymanProfile: HandymanProfile | null };
+export type CurrentUser = User & {
+  handymanProfile: (Omit<HandymanProfile, 'skills'> & { skills: string[] }) | null;
+};
 
 async function fetchMe(): Promise<CurrentUser | null> {
   const res = await fetch('/api/users/me');

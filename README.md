@@ -13,12 +13,12 @@ FixMyHome allows:
 
 - **Framework:** Next.js 14+ (App Router, React Server Components)
 - **Language:** TypeScript
-- **Database:** Self-hosted PostgreSQL with Prisma ORM (`@prisma/adapter-pg`)
+- **Database:** MySQL (Hostinger-managed) with Prisma ORM (`@prisma/adapter-mariadb`)
 - **Authentication:** Clerk
 - **File Storage:** Uploadthing
 - **Styling:** Tailwind CSS + shadcn/ui
 - **State Management:** TanStack Query + Zustand
-- **Deployment:** Docker on a self-managed VPS (Hostinger)
+- **Deployment:** Hostinger hPanel Node.js hosting (Git auto-deploy). `Dockerfile`/`docker-compose.yml` are kept for local Docker-based dev but are not used in production.
 
 ## Project Status
 
@@ -30,7 +30,7 @@ FixMyHome allows:
 - Utility files and constants
 
 🚧 **In Progress:**
-- Database setup (requires Neon/PostgreSQL connection)
+- Database setup (requires Hostinger MySQL connection)
 - Clerk authentication configuration
 - shadcn/ui component setup
 
@@ -41,18 +41,19 @@ FixMyHome allows:
 
 ## Setup Instructions
 
-### 1. Set Up Database (self-hosted PostgreSQL)
+### 1. Set Up Database (Hostinger-managed MySQL)
 
-The app runs against a standard self-hosted PostgreSQL instance via `@prisma/adapter-pg` — no cloud-specific driver required. On a VPS this is the `db` service in `docker-compose.yml`.
+The app runs against MySQL via `@prisma/adapter-mariadb` (compatible with both MySQL and MariaDB servers).
 
-1. Create `.env` file in the project root:
+1. In hPanel, go to Databases → MySQL Databases and create a database + user.
+2. Create `.env` file in the project root:
 
 ```bash
 # Copy .env.example to .env
 cp .env.example .env
 ```
 
-2. Set `POSTGRES_PASSWORD` and `DATABASE_URL` in `.env` (see comments in `.env.example` for the Docker vs. bare-metal host difference).
+3. Set `DATABASE_URL` in `.env` using the host/user/password/db name from hPanel, e.g. `mysql://user:password@localhost:3306/dbname`.
 
 ### 2. Run Database Migrations
 
@@ -245,7 +246,7 @@ src/
 
 See `.env.example` for all required environment variables:
 
-- `DATABASE_URL` - PostgreSQL connection string (Neon)
+- `DATABASE_URL` - MySQL connection string (Hostinger-managed)
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk public key
 - `CLERK_SECRET_KEY` - Clerk secret key
 - `UPLOADTHING_SECRET` - Uploadthing secret
@@ -297,70 +298,48 @@ npm run format       # Format with Prettier (if configured)
 
 ## Deployment
 
-### Deploy to a VPS (Docker)
+### Deploy via Hostinger hPanel (Node.js auto-deploy)
 
-The app ships with a multi-stage `Dockerfile` (Next.js `output: "standalone"`) and a `docker-compose.yml` that runs the app alongside a self-hosted PostgreSQL container. The app container only binds to `127.0.0.1:3000` — Nginx on the host handles the public-facing domain and TLS.
+Production deploys through hPanel's Git-connected Node.js hosting — it pulls the repo, runs `npm install` (which triggers `prisma generate` via `postinstall`) and `npm run build`, then starts the app itself. No Docker is involved in production.
 
-Domain: **fixmyhome.pro** (must already have an A record pointing at the VPS's IP).
+Domain: **fixmyhome.pro**
 
-1. Install Docker + the Compose plugin, and Nginx + certbot:
-
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
-```
-
-2. Clone the repo and create `.env` from `.env.example` (set `POSTGRES_PASSWORD` and all other secrets — Clerk, Uploadthing, etc.):
-
-```bash
-git clone https://github.com/seuth325/MyHomeProjects.git fixmyhome
-cd fixmyhome
-cp .env.example .env
-nano .env   # fill in real secrets
-```
-
-3. Start Postgres and the app:
-
-```bash
-docker compose up -d --build
-```
-
-4. Run migrations against the running database (one-off container using the `builder` stage, which has the Prisma CLI):
-
-```bash
-docker compose run --rm migrate
-```
-
-5. Wire up Nginx and get a TLS cert:
-
-```bash
-sudo cp deploy/nginx/fixmyhome.conf /etc/nginx/sites-available/fixmyhome
-sudo ln -s /etc/nginx/sites-available/fixmyhome /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d fixmyhome.pro -d www.fixmyhome.pro
-```
-
-certbot rewrites the Nginx config in place to add the HTTPS server block and sets up auto-renewal.
-
-6. Point the Clerk webhook (Clerk Dashboard → Webhooks) at `https://fixmyhome.pro/api/webhooks/clerk`.
-
-Re-deploy after pulling new code:
-
-```bash
-git pull
-docker compose up -d --build
-docker compose run --rm migrate   # only if the schema changed
-```
-
-### Database Migrations
-
-For production database:
+1. In hPanel → Websites → Node.js, connect this repo (`https://github.com/seuth325/MyHomeProjects.git`) and set:
+   - **Node version:** 22.x
+   - **Application startup file:** `.next/standalone/server.js` (required because `next.config.ts` sets `output: "standalone"`)
+   - **Environment variables:** `DATABASE_URL` (Hostinger MySQL connection string), Clerk keys, Uploadthing keys, `NEXT_PUBLIC_APP_URL=https://fixmyhome.pro`, `NODE_ENV=production` — see `.env.example` for the full list.
+2. Run migrations once, via hPanel's terminal or SSH, from the app's build directory:
 
 ```bash
 npx prisma migrate deploy
 ```
 
-This runs all pending migrations without prompting. Inside Docker, use `docker compose run --rm migrate` instead (see above).
+3. Point the Clerk webhook (Clerk Dashboard → Webhooks) at `https://fixmyhome.pro/api/webhooks/clerk`.
+4. Trigger Deploy/Redeploy from hPanel. TLS is handled by Hostinger's own certificate management for the domain.
+
+Re-deploy after pushing new code by hitting hPanel's Deploy button (or pushing to the connected branch, if auto-deploy-on-push is enabled), then re-run `npx prisma migrate deploy` if the schema changed.
+
+If the build ever fails with a stale/corrupted checkout (e.g. permission errors under `.builds/source`), delete `~/domains/fixmyhome.pro/public_html/.builds` via SSH and redeploy to force a clean clone.
+
+### Alternative: Docker (local dev only)
+
+The repo also ships a multi-stage `Dockerfile` and `docker-compose.yml` (app + MySQL) for local development or a self-managed VPS instead of hPanel:
+
+```bash
+cp .env.example .env   # set MYSQL_PASSWORD and DATABASE_URL=mysql://fixmyhome:<pw>@db:3306/fixmyhome
+docker compose up -d --build
+docker compose run --rm migrate
+```
+
+This is not the path used for the fixmyhome.pro production deploy.
+
+### Database Migrations
+
+```bash
+npx prisma migrate deploy
+```
+
+This runs all pending migrations without prompting. Inside Docker, use `docker compose run --rm migrate` instead.
 
 ## Support & Resources
 
