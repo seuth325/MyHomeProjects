@@ -1,15 +1,15 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@/auth';
 import { prisma } from './db';
 import type { User, HandymanProfile } from '@prisma/client';
 
 export type UserWithProfile = User & { handymanProfile: HandymanProfile | null };
 
-/** Returns the DB User row for the currently authenticated Clerk session, or null. */
+/** Returns the DB User row for the currently authenticated session, or null. */
 export async function getCurrentUser(): Promise<UserWithProfile | null> {
-  const { userId } = await auth();
-  if (!userId) return null;
+  const session = await auth();
+  if (!session?.user?.id) return null;
   return prisma.user.findUnique({
-    where: { clerkId: userId },
+    where: { id: session.user.id },
     include: { handymanProfile: true },
   });
 }

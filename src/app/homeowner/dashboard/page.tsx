@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useClerk } from '@clerk/nextjs';
+import { signOut } from 'next-auth/react';
 import { useCurrentUser } from '@/lib/hooks/use-current-user';
 import { useMyJobs } from '@/lib/hooks/use-jobs';
 import { useQuery } from '@tanstack/react-query';
@@ -27,7 +27,6 @@ import { toast } from 'sonner';
 import { useUploadProfilePhoto } from '@/lib/hooks/use-upload';
 
 export default function HomeownerDashboard() {
-  const { signOut } = useClerk();
   const { user, isLoaded, updateProfile } = useCurrentUser();
   const { data: jobs = [], isPending: jobsPending } = useMyJobs();
 
@@ -137,7 +136,7 @@ export default function HomeownerDashboard() {
                 )}
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => signOut({ redirectUrl: '/' })}>
+            <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: '/' })}>
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>

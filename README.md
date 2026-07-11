@@ -14,7 +14,7 @@ FixMyHome allows:
 - **Framework:** Next.js 14+ (App Router, React Server Components)
 - **Language:** TypeScript
 - **Database:** MySQL (Hostinger-managed) with Prisma ORM (`@prisma/adapter-mariadb`)
-- **Authentication:** Clerk
+- **Authentication:** Auth.js (self-hosted, email/password via Credentials provider)
 - **File Storage:** Uploadthing
 - **Styling:** Tailwind CSS + shadcn/ui
 - **State Management:** TanStack Query + Zustand
@@ -31,7 +31,6 @@ FixMyHome allows:
 
 🚧 **In Progress:**
 - Database setup (requires Hostinger MySQL connection)
-- Clerk authentication configuration
 - shadcn/ui component setup
 
 📋 **Upcoming (Week 1):**
@@ -55,32 +54,34 @@ cp .env.example .env
 
 3. Set `DATABASE_URL` in `.env` using the host/user/password/db name from hPanel, e.g. `mysql://user:password@localhost:3306/dbname`.
 
-### 2. Run Database Migrations
+### 2. Apply the Database Schema
+
+There's no `prisma/migrations` history in this repo (the Hostinger MySQL user doesn't have the shadow-database privileges `prisma migrate dev`/`deploy` require), so the schema is applied directly:
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma db push
 ```
 
 This creates all tables (User, Job, Bid, Message, Review, etc.) with proper indexes.
 
-### 3. Set Up Clerk Authentication
+### 3. Set Up Authentication
 
-1. Create a free account at [Clerk](https://clerk.com)
-2. Create a new application called "FixMyHome"
-3. In the Clerk Dashboard:
-   - Go to **API Keys** and copy your keys
-   - Add them to `.env`:
+Auth is self-hosted via [Auth.js](https://authjs.dev) (Credentials provider — email/password against the `User` table) — no external dashboard or account needed.
 
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
-CLERK_SECRET_KEY="sk_test_..."
+1. Generate a secret and add it to `.env`:
+
+```bash
+npx auth secret
 ```
 
-4. Configure redirect URLs in Clerk Dashboard:
-   - Sign-in URL: `/sign-in`
-   - Sign-up URL: `/sign-up`
-   - After sign-in: `/role-selection`
-   - After sign-up: `/role-selection`
+2. On any deployment that isn't Vercel (i.e. Hostinger), also set:
+
+```
+AUTH_TRUST_HOST="true"
+AUTH_URL="https://fixmyhome.pro"
+```
+
+Sign-in/sign-up/redirect routes are fixed in code (`/sign-in`, `/sign-up`, `/role-selection`) — no dashboard configuration required.
 
 ### 4. Set Up Uploadthing (for photo uploads)
 
@@ -170,9 +171,8 @@ src/
 ### Week 1: Foundation ✅
 - [x] Initialize project
 - [x] Set up database schema
-- [ ] Configure Clerk authentication
+- [x] Build authentication flow (Auth.js, email/password)
 - [ ] Install shadcn/ui components
-- [ ] Build authentication flow
 - [ ] Create onboarding forms
 - [ ] Implement layouts
 
@@ -247,8 +247,8 @@ src/
 See `.env.example` for all required environment variables:
 
 - `DATABASE_URL` - MySQL connection string (Hostinger-managed)
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk public key
-- `CLERK_SECRET_KEY` - Clerk secret key
+- `AUTH_SECRET` - Auth.js session signing secret (generate with `npx auth secret`)
+- `AUTH_TRUST_HOST` / `AUTH_URL` - required in production on non-Vercel hosts
 - `UPLOADTHING_SECRET` - Uploadthing secret
 - `UPLOADTHING_APP_ID` - Uploadthing app ID
 - `ANTHROPIC_API_KEY` - (Optional) For AI bid explanations
@@ -262,10 +262,9 @@ npm run build        # Build for production
 npm run start        # Start production server
 
 # Database
-npx prisma migrate dev       # Run migrations
+npx prisma db push           # Apply schema changes (no migration history in this repo)
 npx prisma generate          # Generate Prisma client
 npx prisma studio            # Open Prisma Studio GUI
-npx prisma db push           # Push schema changes (development)
 
 # Code Quality
 npm run lint         # Run ESLint
@@ -307,17 +306,16 @@ Domain: **fixmyhome.pro**
 1. In hPanel → Websites → Node.js, connect this repo (`https://github.com/seuth325/MyHomeProjects.git`) and set:
    - **Node version:** 22.x
    - **Application startup file:** `.next/standalone/server.js` (required because `next.config.ts` sets `output: "standalone"`)
-   - **Environment variables:** `DATABASE_URL` (Hostinger MySQL connection string), Clerk keys, Uploadthing keys, `NEXT_PUBLIC_APP_URL=https://fixmyhome.pro`, `NODE_ENV=production` — see `.env.example` for the full list.
-2. Run migrations once, via hPanel's terminal or SSH, from the app's build directory:
+   - **Environment variables:** `DATABASE_URL` (Hostinger MySQL connection string), `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `AUTH_URL=https://fixmyhome.pro`, Uploadthing keys, `NEXT_PUBLIC_APP_URL=https://fixmyhome.pro`, `NODE_ENV=production` — see `.env.example` for the full list.
+2. Apply the schema once, via hPanel's terminal or SSH, from the app's build directory:
 
 ```bash
-npx prisma migrate deploy
+npx prisma db push
 ```
 
-3. Point the Clerk webhook (Clerk Dashboard → Webhooks) at `https://fixmyhome.pro/api/webhooks/clerk`.
-4. Trigger Deploy/Redeploy from hPanel. TLS is handled by Hostinger's own certificate management for the domain.
+3. Trigger Deploy/Redeploy from hPanel. TLS is handled by Hostinger's own certificate management for the domain.
 
-Re-deploy after pushing new code by hitting hPanel's Deploy button (or pushing to the connected branch, if auto-deploy-on-push is enabled), then re-run `npx prisma migrate deploy` if the schema changed.
+Re-deploy after pushing new code by hitting hPanel's Deploy button (or pushing to the connected branch, if auto-deploy-on-push is enabled), then re-run `npx prisma db push` if the schema changed.
 
 If the build ever fails with a stale/corrupted checkout (e.g. permission errors under `.builds/source`), delete `~/domains/fixmyhome.pro/public_html/.builds` via SSH and redeploy to force a clean clone.
 
@@ -333,19 +331,19 @@ docker compose run --rm migrate
 
 This is not the path used for the fixmyhome.pro production deploy.
 
-### Database Migrations
+### Database Schema Changes
 
 ```bash
-npx prisma migrate deploy
+npx prisma db push
 ```
 
-This runs all pending migrations without prompting. Inside Docker, use `docker compose run --rm migrate` instead.
+Inside Docker, use `docker compose run --rm migrate` instead.
 
 ## Support & Resources
 
 - **Next.js Docs:** https://nextjs.org/docs
 - **Prisma Docs:** https://www.prisma.io/docs
-- **Clerk Docs:** https://clerk.com/docs
+- **Auth.js Docs:** https://authjs.dev
 - **shadcn/ui:** https://ui.shadcn.com
 - **Uploadthing:** https://docs.uploadthing.com
 
@@ -355,4 +353,4 @@ Private project - All rights reserved
 
 ---
 
-Built with ❤️ using Next.js, Prisma, and Clerk
+Built with ❤️ using Next.js, Prisma, and Auth.js

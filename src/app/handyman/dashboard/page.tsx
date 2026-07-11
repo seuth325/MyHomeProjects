@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useClerk } from '@clerk/nextjs';
+import { signOut } from 'next-auth/react';
 import { useCurrentUser } from '@/lib/hooks/use-current-user';
 import { useBrowseJobs } from '@/lib/hooks/use-jobs';
 import { useMyBids } from '@/lib/hooks/use-bids';
@@ -34,7 +34,6 @@ import { toast } from 'sonner';
 import { useUploadProfilePhoto } from '@/lib/hooks/use-upload';
 
 export default function HandymanDashboard() {
-  const { signOut } = useClerk();
   const { user, isLoaded, updateProfile } = useCurrentUser();
   const { data: browseJobs = [] } = useBrowseJobs();
   const { data: myBids = [] } = useMyBids();
@@ -175,7 +174,7 @@ export default function HandymanDashboard() {
                 )}
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => signOut({ redirectUrl: '/' })}>
+            <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: '/' })}>
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>

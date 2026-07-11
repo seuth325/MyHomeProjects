@@ -1,14 +1,14 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json(null, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json(null, { status: 401 });
 
   const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
+    where: { id: session.user.id },
     include: { handymanProfile: true },
   });
 
@@ -31,8 +31,8 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -43,7 +43,7 @@ export async function PATCH(req: Request) {
   const { handymanProfile: profileData, ...userData } = parsed.data;
 
   const user = await prisma.user.update({
-    where: { clerkId: userId },
+    where: { id: session.user.id },
     data: {
       ...(userData.name      !== undefined && { name: userData.name }),
       ...(userData.location  !== undefined && { location: userData.location }),

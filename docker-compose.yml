@@ -40,7 +40,7 @@ services:
         condition: service_healthy
     env_file:
       - .env
-    entrypoint: ["npx", "prisma", "migrate", "deploy"]
+    entrypoint: ["npx", "prisma", "db", "push"]
     profiles: ["tools"]
 
 volumes:

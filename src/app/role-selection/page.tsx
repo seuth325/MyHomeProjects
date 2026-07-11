@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Home, Wrench, Loader2 } from 'lucide-react';
@@ -10,7 +10,9 @@ import { toast } from 'sonner';
 
 export default function RoleSelectionPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { status } = useSession();
+  const isLoaded = status !== 'loading';
+  const isSignedIn = status === 'authenticated';
   const [selecting, setSelecting] = useState<'HOMEOWNER' | 'HANDYMAN' | null>(null);
 
   const handleRoleSelection = async (role: 'HOMEOWNER' | 'HANDYMAN') => {

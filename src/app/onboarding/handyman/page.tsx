@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,9 @@ import { X, Loader2 } from 'lucide-react';
 
 export default function HandymanOnboardingPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { status } = useSession();
+  const isLoaded = status !== 'loading';
+  const isSignedIn = status === 'authenticated';
   const [businessName, setBusinessName] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [bio, setBio] = useState('');

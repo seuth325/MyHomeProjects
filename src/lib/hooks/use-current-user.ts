@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import type { User, HandymanProfile } from '@prisma/client';
 
 export type CurrentUser = User & {
@@ -16,8 +16,9 @@ async function fetchMe(): Promise<CurrentUser | null> {
 }
 
 export function useCurrentUser() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user: clerkUser } = useUser();
+  const { status } = useSession();
+  const isLoaded = status !== 'loading';
+  const isSignedIn = status === 'authenticated';
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -55,8 +56,7 @@ export function useCurrentUser() {
   return {
     user: query.data ?? null,
     isLoaded: isLoaded && (!isSignedIn || !query.isPending),
-    isSignedIn: isSignedIn ?? false,
-    clerkUser,
+    isSignedIn,
     updateProfile,
     refetch: query.refetch,
   };

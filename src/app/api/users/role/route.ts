@@ -1,26 +1,19 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { role } = await req.json();
   if (role !== 'HOMEOWNER' && role !== 'HANDYMAN') {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
   }
 
-  // Upsert the user so this works even when the Clerk webhook hasn't fired yet
-  // (e.g. in local dev without ngrok)
-  const clerkUser = await currentUser();
-  const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? '';
-  const name = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') || 'New User';
-
-  const user = await prisma.user.upsert({
-    where: { clerkId: userId },
-    update: { role },
-    create: { clerkId: userId, email, name, role },
+  const user = await prisma.user.update({
+    where: { id: session.user.id },
+    data: { role },
   });
 
   // Ensure a blank HandymanProfile exists for handymen
